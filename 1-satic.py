@@ -14,7 +14,17 @@ import math
 # distance_matrix=[[0,1,1.4,1],[1,0,1,1.4],[1.4,1,0,1],[1,1.4,1,0]]
 start=time.process_time()
 from pytsp.christofides_tsp import christofides_tsp
+import gurobipy as gp
+from gurobipy import GRB
+from collections import defaultdict
+from collections import OrderedDict
 
+def merge_dicts_with_sum(dicts):
+    merged = defaultdict(int)  # 使用int初始化，这样可以直接进行加法
+    for d in dicts:
+        for key, value in d.items():
+            merged[key] += value
+    return dict(merged)  # 返回普通字典
 def golden_section_search(a, b, tol=1e-1):
     golden_ratio = (math.sqrt(5) - 1) / 2
     length = b - a
@@ -226,7 +236,15 @@ for i in range (60):
 #             location_sec.append(i*row+j+1)
 #     if i+1 in sec_tail:
 #         random.shuffle(location_sec)
-
+        
+#         # f=[distance[0][d] for d in location_sec] #按距离排序location
+#         # sku_p=sorted(range(len(f)),key=lambda k: f[k]) 
+#         # location_sec=[location_sec[d] for d in sku_p]  
+        
+#         # f=[f1[d] for d in location_sec] #按距离排序location
+#         # sku_p=sorted(range(len(f)),key=lambda k: f[k],reverse=True) 
+#         # location_sec=[location_sec[d] for d in sku_p]
+        
 #         location_t.append(location_sec)               
 
 # # 移除并保存元素
@@ -238,9 +256,10 @@ for i in range (60):
 #     location.extend(i)
 # location.insert(0, 0)
 
+# np.save("location.npy",location)
 
 # # 订单的生成
-# order_n =10
+# order_n =1000
 # goods = len(location)-1
     
 # choices = [i for i in range(1, goods+1)]
@@ -285,53 +304,80 @@ for i in range (60):
 #             order[d][i][item] = temp.count(item)       
 
 
+# #统计各商品出现的频次
+# D=[]
+# for d in range(days):          
+#     D.append(merge_dicts_with_sum(order[d]))
+# # result=merge_dicts_with_sum(result_list)
+# for d in range(days): 
+#     for i in range(1,goods+1):
+#         if i not in D[d]:
+#             D[d][i]=0
+            
 # #DFW算法
-# K=0   #迭代次数
+# K=1000   #迭代次数
 # delta=0.1  #终止条件
 # x=[0 for i in range(goods)]  
 # j=0  #IPA最小的商品索引,初值为0
 
-# #构造初始解
-# for kk in range(S_list[-1]):
-#     G=IPA(x,j)     
-#     #贪心算法构造初始值
-#     j=G.index(min(G))
-#     x[j]+=1
-#     j=j+1  #索引转换
-#     if kk+1 in S_list:
-#         print(kk+1)
-#         temp=[i for i in x]
-#         x_list.append(temp)
+# # #构造初始解-1
+# # for kk in range(S_list[-1]):
+# #     G=IPA(x,j)     
+# #     #贪心算法构造初始值
+# #     j=G.index(min(G))
+# #     x[j]+=1
+# #     j=j+1  #索引转换
+# #     if kk+1 in S_list:
+# #         print(kk+1)
+# #         temp=[i for i in x]
+# #         x_list.append(temp)
         
 # iteration=0 
 # x_list1=[] 
 # for S in S_list:
+   
+#     #构造初始解-2
+#     m=gp.Model("wo")
+#     m.setParam('MIPGap', 0.0)
+#     Q=m.addVars(goods,vtype=GRB.CONTINUOUS, name="Q")
+#     u=m.addVars(goods,days,vtype=GRB.CONTINUOUS, name="u")
+    
+#     m.addConstr((sum(Q[i] for i in range(goods))<=S),"con1")
+#     m.addConstrs((Q[i]>=0 for i in range(goods)),"con2")  
+#     m.addConstrs((u[i,j]>=D[j][i+1]-Q[i]  for j in range(days) for i in range(goods)),"con3")
+#     m.addConstrs((u[i,j]>=0 for i in range(goods) for j in range(days)),"con4")
+#     m.setObjective((1/days)*sum(distance[0][location[i+1]]*u[i,j] for i in range(goods) for j in range(days)),GRB.MINIMIZE)    
+    
+#     m.optimize()
+#     Q= {ind:Q[ind].x for ind in Q}    
+   
+#     temp=[0 for i in range(goods)]
+#     for i in range(goods):
+#         temp[i]=Q[i]
+#     x_list.append(temp)
+   
 #     # 加载初始解
 #     x=x_list[iteration]
     
 #     #迭代
 #     w = [1 for i in range(goods)]
 #     for kk in range(K):
-#         G=IPA(x)    
+#         G=IPA(x,j)    
 #         c=[G[i] for i in range(goods)] 
 #         A_ub=[w]
 #         b_ub=[S]
 #         x_bounds=[(0,None) for i in range(goods)]
 #         result = linprog(c, A_ub, b_ub, bounds=x_bounds, method='simplex')
 #         s=list(result.x)
-#         # for i in range(goods):
-#         #     if s[i]!=0:
-#         #         print(i)
         
         
 #         d=[s[i]-x[i] for i in range(goods)]
 #         g=-sum(G[i]*d[i] for i in range(goods))
-#         print(g)
 #         if g<0.1:
 #             break
 #         else:
-#             # alpha=2/(S+k)
-#             alpha = golden_section_search(0, 1)
+#             # alpha=2/(S+k)  #迭代1
+#             alpha = golden_section_search(0, 1)  #迭代2
 #             x=[x[i]+alpha*d[i] for i in range(goods)]
             
 #     iteration+=1         
@@ -340,31 +386,35 @@ for i in range (60):
 
 # end=time.process_time()
 # print(end-start) 
-# np.save("x.npy", x_list1) 
-
-
+# np.save("x_0.npy", x_list1) 
+# # np.save("x_1.npy", x_list1) 
+# # np.save("x_2.npy", x_list1) 
 
 
 # test
-x_list=np.load('x.npy',allow_pickle=True).tolist()
-# x_list=np.load('x11.npy',allow_pickle=True).tolist() #按距离排序
-# x_list=np.load('x12.npy',allow_pickle=True).tolist() #按exposure排序 
+x_list=np.load('x_0.npy',allow_pickle=True).tolist()
+# x_list=np.load('x_1.npy',allow_pickle=True).tolist() #按距离排序
+# x_list=np.load('x_2.npy',allow_pickle=True).tolist() #按exposure排序 
+
 
 seeds=[i for i in range(1,11)]  #种子
-# seeds=[1]  
-# S_lst=[0] 
 l0=[[] for i in range(10)]
 pdr_list=[[] for i in range(10)]
 ratio=[[] for i in range(10)]
 aisle_list=[[] for i in range(10)]
-origin = np.load('origin1.npy', allow_pickle=True).tolist()  # 初始距离,运行过1-other strategies后产生
+
+# 初始距离,不同布局对应的距离不同
+origin = np.load('origin.npy', allow_pickle=True).tolist()
+# origin = np.load('origin1.npy', allow_pickle=True).tolist()
+# origin = np.load('origin2.npy', allow_pickle=True).tolist()  
+
 nonstop=[i for i in range(16,31)]
 iteration=0
 for S in S_list:
-    
+    s1=0
     for s in seeds:
         random.seed(s)
-    
+        
         # 储位的生成  
         location=[]
         location_t = []  
@@ -387,6 +437,7 @@ for S in S_list:
                 for k in range(2*layer[i]):
                     location_sec.append(i*row+j+1)
             if i+1 in sec_tail:
+                #以下分别是三种布局
                 random.shuffle(location_sec)
                 
                 # f=[distance[0][d] for d in location_sec] #按距离排序location
@@ -407,7 +458,7 @@ for S in S_list:
         for i in location_t:
             location.extend(i)
         location.insert(0, 0)
-
+        location = np.load('location.npy', allow_pickle=True).tolist()
 
         # 订单的生成
         order_n =1000
@@ -481,7 +532,8 @@ for S in S_list:
         for j in range(goods) :
             d_f+=x_list[iteration][j]*distance[0][location[j]]
                 
-        ratio[s-1].append((d_f/S)/(d_0/5500.0))
+        # ratio[s-1].append((d_f/S)/(d_0/5500.0))
+        
         #消耗掉x的库存，计算此时的f 
         good=[]
         for j in range(goods) :
@@ -542,10 +594,10 @@ for S in S_list:
         print(pdr)
         pdr_list[s-1].append(pdr)  
         aisle_list[s-1].append((aisle_num-aisle_num_1)/aisle_num)                 
-                        
+                          
     iteration+=1                        
 pdr_list=np.array(pdr_list)  
 pdr_sum = np.mean(pdr_list,axis=0) 
 aisle_list=np.array(aisle_list)
 aisle_mean=np.mean(aisle_list,axis=0)  
-np.save("b",pdr_list)  
+np.save("a",pdr_list)  
